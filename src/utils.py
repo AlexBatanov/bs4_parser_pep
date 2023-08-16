@@ -44,7 +44,7 @@ async def async_get_response(session, url):
 
 
 def find_tag(
-    soup: BeautifulSoup, tag: str, attrs: Optional[Dict[str, str]]=None
+    soup: BeautifulSoup, tag: str, attrs=None
 ) -> NavigableString:
     """
     Ищет тег с указанным именем и атрибутами в объекте BeautifulSoup.
@@ -65,7 +65,7 @@ def find_tag(
 
 
 def find_all_tags(
-    soup: BeautifulSoup, tag: str, attrs: Optional[Dict[str, str]]=None
+    soup: BeautifulSoup, tag: str, attrs=None
 ) -> ResultSet[Any]:
     """
     Ищет все теги с указанным именем и атрибутами в объекте BeautifulSoup.

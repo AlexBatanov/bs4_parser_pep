@@ -256,7 +256,7 @@ def main() -> None:
     parser_mode = args.mode
     try:
         if parser_mode == 'pep':
-            results = asyncio.run(pep(session))
+            results = asyncio.run(MODE_TO_FUNCTION[parser_mode](session))
         else:
             results = MODE_TO_FUNCTION[parser_mode](session)
     except Exception as e:
