@@ -157,7 +157,7 @@ def pep(
         status = tr.find('td').text[1:]
         status = EXPECTED_STATUS.get(status)
         if status is None:
-            logging.info(f'Получен неизвестный статус')
+            logging.info('Получен неизвестный статус')
             continue
         link = tr.find('a').text
         status_links.append((status, PREFIX_PEP + link))
