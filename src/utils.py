@@ -10,7 +10,7 @@ from exceptions import ParserFindTagException
 
 def get_response(
     session: requests_cache.CachedSession, url: str
-) -> requests_cache.AnyResponse | None:
+) -> Optional[requests_cache.AnyResponse]:
     """
     Отправляет GET-запрос на указанный URL с помощью переданной сессии
     и возвращает ответ в виде объекта Response.
