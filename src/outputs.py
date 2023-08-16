@@ -1,16 +1,14 @@
 import datetime as dt
 import csv
 import logging
-from typing import Any, Dict, List
+from typing import Any, List
 
 from prettytable import PrettyTable
 
 from constants import BASE_DIR, DATETIME_FORMAT
 
 
-def control_output(
-    results: List[List[str]] | Dict[str, str], cli_args: Any
-) -> None:
+def control_output(results: List[List[str]], cli_args: Any) -> None:
     """
     Определяет тип вывода результатов парсинга PEP документов в зависимости
     от выбранного режима и вызывает соответствующую функцию вывода.
@@ -31,7 +29,7 @@ def control_output(
         default_output(results)
 
 
-def default_output(results: List[List[str]] | Dict[str, str]) -> None:
+def default_output(results: List[List[str]]) -> None:
     """
     Выводит результаты парсинга в консоль в формате,
     где каждый элемент строки разделен пробелом.
@@ -58,9 +56,7 @@ def pretty_output(results: List[List[str]]) -> None:
     print(table)
 
 
-def file_output(
-    results: List[List[str]] | Dict[str, str], cli_args: Any
-) -> None:
+def file_output(results: List[List[str]], cli_args: Any) -> None:
     """
     Сохраняет результаты парсинга в файл формата csv в директории results
     с названием, содержащим текущую дату и время и выбранный режим работы.
