@@ -24,7 +24,6 @@ def get_response(
     """
     try:
         response = session.get(url)
-        response.encoding = 'utf-8'
         return response
     except RequestException:
         logging.exception(
@@ -33,8 +32,19 @@ def get_response(
         )
 
 
+async def async_get_response(session, url):
+    async with session.get(url) as response:
+        try:
+            return await response.text()
+        except RequestException:
+            logging.exception(
+                f'Возникла ошибка при загрузке страницы {url}',
+                stack_info=True
+            )
+
+
 def find_tag(
-    soup: BeautifulSoup, tag: str, attrs: Optional[Dict[str, str]] = None
+    soup: BeautifulSoup, tag: str, attrs: Optional[Dict[str, str]]=None
 ) -> NavigableString:
     """
     Ищет тег с указанным именем и атрибутами в объекте BeautifulSoup.
@@ -55,7 +65,7 @@ def find_tag(
 
 
 def find_all_tags(
-    soup: BeautifulSoup, tag: str, attrs: Optional[Dict[str, str]] = None
+    soup: BeautifulSoup, tag: str, attrs: Optional[Dict[str, str]]=None
 ) -> ResultSet[Any]:
     """
     Ищет все теги с указанным именем и атрибутами в объекте BeautifulSoup.

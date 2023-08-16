@@ -2,8 +2,6 @@ from itertools import chain
 from typing import Dict, List, Tuple
 from collections import defaultdict
 import re
-import asyncio
-import aiohttp
 
 from urllib.parse import urljoin
 from bs4 import BeautifulSoup
@@ -13,7 +11,7 @@ import logging
 
 from configs import configure_argument_parser, configure_logging
 from outputs import control_output
-from utils import async_get_response, get_response, find_tag, find_all_tags
+from utils import get_response, find_tag, find_all_tags
 from constants import BASE_DIR, DOWNLOAD_PATH, MAIN_DOC_URL, MAIN_PEP_URL,\
     NAME_DIR_DOWNLOADS, PREFIX_PEP, SECTIONS_PEP,\
     EXPECTED_STATUS, WHATS_NEW_PATH
@@ -132,7 +130,7 @@ def download(session: requests_cache.CachedSession) -> None:
     logging.info(f'Архив был загружен и сохранён: {archive_path}')
 
 
-async def pep(
+def pep(
     session: requests_cache.CachedSession
 ) -> List[Tuple[str, int]]:
     """
@@ -155,7 +153,7 @@ async def pep(
         find_all_tags(tbody, 'tr') for tbody in tbodys
     )
 
-    for tr in tr_tags:
+    for tr in tqdm(tr_tags):
         status = tr.find('td').text[1:]
         status = EXPECTED_STATUS.get(status)
         if status is None:
@@ -164,63 +162,40 @@ async def pep(
         link = tr.find('a').text
         status_links.append((status, PREFIX_PEP + link))
 
-    result_status = await get_count_status(status_links)
+    result_status = get_count_status(session, status_links)
     return [item for item in result_status.items()]
 
 
-async def process_link(
-        session: aiohttp,
-        result_status: Dict[str, int],
-        status: str, link: str
-) -> None:
-    """
-    Обрабатывает одну ссылку на страницу PEP и обновляет счетчики статусов.
-
-    :param session: Сессия aiohttp для выполнения запросов.
-    :param result_status: Словарь счетчиков статусов.
-    :param status: ожидаемый статусов.
-    :param link: Ссылка на страницу PEP.
-    :return: None.
-    """
-    url = urljoin(MAIN_PEP_URL, link)
-    response = await async_get_response(session, url)
-    if response is None:
-        return
-
-    soup = BeautifulSoup(response, features='lxml')
-    new_status = find_tag(
-        soup, 'section', {'id': 'pep-content'}
-    ).find('abbr').text
-
-    if new_status not in status:
-        logging.info(
-            f'\nНесовпадающие статусы:\n'
-            f'{url}\nСтатус в карточке: {new_status}\n'
-            f'Ожидаемые статусы: {status}'
-        )
-    result_status[new_status] += 1
-
-
-async def get_count_status(
+def get_count_status(
+    session: requests_cache.CachedSession,
     status_links: List[Tuple[str, str]]
 ) -> Dict[str, int]:
     """
-    Получает список ссылок на страницы PEP
-    и возвращает словарь счетчиков статусов.
+    Получает URLs PEP с каждым статусом.
 
-    :param status_links: Список кортежей (статус, ссылка на страницу PEP).
-    :return: Словарь счетчиков статусов.
+    :param session: Сессия для отправки запросов.
+    :type session: requests_cache.CachedSession
+    :return: Словарь, содержащий количество PEP документов
+    с каждым статусом и общее количество документов.
     """
     result_status = defaultdict(int)
+    for status, link in tqdm(status_links):
+        url = urljoin(MAIN_PEP_URL, link)
+        response = get_response(session, url)
+        if response is None:
+            return
+        soup = BeautifulSoup(response.text, features='lxml')
+        new_status = find_tag(
+            soup, 'section', {'id': 'pep-content'}
+        ).find('abbr').text
 
-    async with aiohttp.ClientSession() as session:
-        tasks = []
-        for status, link in status_links:
-            task = process_link(session, result_status, status, link)
-            tasks.append(task)
-
-        await asyncio.gather(*tasks)
-
+        if new_status not in status:
+            logging.info(
+                f'\nНесовпадающие статусы:\n'
+                f'{url}\nСтатус в карточке: {new_status}\n'
+                f'Ожидаемые статусы: {status}'
+            )
+        result_status[new_status] += 1
     result_status['Total'] = sum(result_status.values())
     return result_status
 
@@ -248,19 +223,16 @@ def main() -> None:
     args = arg_parser.parse_args()
     logging.info(f'Аргументы командной строки: {args}')
 
-    session = requests_cache.CachedSession()
-
+    session = requests_cache.CachedSession(expire_after=None)
+    session.max_redirects
     if args.clear_cache:
         session.cache.clear()
 
     parser_mode = args.mode
     try:
-        if parser_mode == 'pep':
-            results = asyncio.run(pep(session))
-        else:
-            results = MODE_TO_FUNCTION[parser_mode](session)
+        results = MODE_TO_FUNCTION[parser_mode](session)
     except Exception as e:
-        logging.error(str(e), e)
+        logging.error(str(e))
         results = None
 
     if results is not None:

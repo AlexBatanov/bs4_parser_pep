@@ -45,3 +45,9 @@
    
 ### Автор
 [Batanov Alexandr](https://github.com/AlexBatanov)
+
+ps.: часть реализована асинхронна, для использования обычного подхода:
+```
+main.py вынести из проекта
+no_async_main.py переименовать в main.py
+```

@@ -19,8 +19,6 @@ def control_output(results: List[List[str]], cli_args: Any) -> None:
     :return: None
     """
     output = cli_args.output
-    print(type(results))
-    print(results)
     if output == 'pretty':
         pretty_output(results)
     elif output == 'file':
