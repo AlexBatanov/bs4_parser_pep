@@ -12,8 +12,8 @@ from configs import configure_argument_parser, configure_logging
 from outputs import control_output
 from utils import find_tag, find_all_tags, get_soup
 from exceptions import NotFoundVersionList
-from constants import URLConstants, PathConstants,\
-    PEPConstants, StatusConstants
+from constants import BASE_DIR, DOWNLOAD_PATH, EXPECTED_STATUS, MAIN_DOC_URL,\
+    MAIN_PEP_URL, NAME_DIR_DOWNLOADS, PREFIX, SECTIONS, WHATS_NEW_PATH
 
 
 def whats_new(
@@ -29,8 +29,8 @@ def whats_new(
     (ссылка на статью, заголовок, редактор/автор).
     """
     whats_new_url = urljoin(
-        URLConstants.MAIN_DOC_URL,
-        URLConstants.WHATS_NEW_PATH
+        MAIN_DOC_URL,
+        WHATS_NEW_PATH
     )
     soup = get_soup(session, whats_new_url)
     main_div = find_tag(soup, 'section', attrs={'id': 'what-s-new-in-python'})
@@ -66,7 +66,7 @@ def latest_versions(
     :type session: requests_cache.CachedSession
     :return: Список кортежей вида (ссылка на документацию, версия, статус).
     """
-    soup = get_soup(session, URLConstants.MAIN_DOC_URL)
+    soup = get_soup(session, MAIN_DOC_URL)
     sidebar = find_tag(soup, 'div', {'class': 'sphinxsidebarwrapper'})
     ul_tags = sidebar.find_all('ul')
 
@@ -101,8 +101,8 @@ def download(session: requests_cache.CachedSession) -> None:
     :type session: requests_cache.CachedSession
     """
     downloads_url = urljoin(
-        URLConstants.MAIN_DOC_URL,
-        URLConstants.DOWNLOAD_PATH
+        MAIN_DOC_URL,
+        DOWNLOAD_PATH
     )
     soup = get_soup(session, downloads_url)
     table = find_tag(soup, 'table')
@@ -113,7 +113,7 @@ def download(session: requests_cache.CachedSession) -> None:
     archive_url = urljoin(downloads_url, a4_link)
 
     filename = archive_url.split('/')[-1]
-    downloads_dir = PathConstants.BASE_DIR / PathConstants.NAME_DIR_DOWNLOADS
+    downloads_dir = BASE_DIR / NAME_DIR_DOWNLOADS
     downloads_dir.mkdir(exist_ok=True)
     archive_path = downloads_dir / filename
 
@@ -134,9 +134,9 @@ def pep(
     :return: Список кортежей, содержащих статусы
     и количество PEP документов с соответствующим статусом.
     """
-    soup = get_soup(session, URLConstants.MAIN_PEP_URL)
+    soup = get_soup(session, MAIN_PEP_URL)
     sections = find_all_tags(
-        soup, 'section', {'id': PEPConstants.SECTIONS_PEP}
+        soup, 'section', {'id': SECTIONS}
     )
     tbodys = [find_tag(section, 'tbody') for section in sections]
     tr_tags = chain.from_iterable(
@@ -145,12 +145,12 @@ def pep(
     status_links = []
     for tr in tqdm(tr_tags):
         status = tr.find('td').text[1:]
-        status = StatusConstants.EXPECTED_STATUS.get(status)
+        status = EXPECTED_STATUS.get(status)
         if status is None:
             logging.info('Получен неизвестный статус')
             continue
         link = tr.find('a').text
-        status_links.append((status, PEPConstants.PREFIX_PEP + link))
+        status_links.append((status, PREFIX + link))
 
     result_status = get_count_status(session, status_links)
     return [item for item in result_status.items()]
@@ -170,7 +170,7 @@ def get_count_status(
     """
     result_status = defaultdict(int)
     for status, link in tqdm(status_links):
-        url = urljoin(URLConstants.MAIN_PEP_URL, link)
+        url = urljoin(MAIN_PEP_URL, link)
         soup = get_soup(session, url)
         new_status = find_tag(
             soup, 'section', {'id': 'pep-content'}

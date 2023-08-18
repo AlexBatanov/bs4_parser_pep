@@ -3,7 +3,7 @@ from typing import List
 import logging
 from logging.handlers import RotatingFileHandler
 
-from constants import PathConstants, FormatConstants, ConfigOutputConstants
+from constants import BASE_DIR, NAME_DIR_LOGS, NAME_FILE_LOGS, OUTPUT_OPTION
 
 
 LOG_FORMAT = '"%(asctime)s - [%(levelname)s] - %(message)s"'
@@ -36,7 +36,7 @@ def configure_argument_parser(
     parser.add_argument(
         '-o',
         '--output',
-        choices=ConfigOutputConstants.OUTPUT_OPTION,
+        choices=OUTPUT_OPTION,
         help='Дополнительные способы вывода данных'
     )
     return parser
@@ -50,15 +50,15 @@ def configure_logging():
 
     :return: None
     """
-    log_dir = PathConstants.BASE_DIR / PathConstants.NAME_DIR_LOGS
+    log_dir = BASE_DIR / NAME_DIR_LOGS
     log_dir.mkdir(exist_ok=True)
-    log_file = log_dir / PathConstants.NAME_FILE_LOGS
+    log_file = log_dir / NAME_FILE_LOGS
     rotating_handler = RotatingFileHandler(
         log_file, maxBytes=10 ** 6, backupCount=5
     )
     logging.basicConfig(
-        datefmt=FormatConstants.DT_FORMAT,
-        format=FormatConstants.LOG_FORMAT,
+        datefmt=DT_FORMAT,
+        format=LOG_FORMAT,
         level=logging.INFO,
         handlers=(rotating_handler, logging.StreamHandler())
     )
