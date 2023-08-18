@@ -13,7 +13,7 @@ import logging
 
 from configs import configure_argument_parser, configure_logging
 from outputs import control_output
-from utils import async_get_response, get_response,\
+from utils import async_get_response,\
     find_tag, find_all_tags, get_soup
 from constants import BASE_DIR, DOWNLOAD_PATH, MAIN_DOC_URL, MAIN_PEP_URL,\
     NAME_DIR_DOWNLOADS, PREFIX_PEP, SECTIONS_PEP,\

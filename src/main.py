@@ -4,7 +4,6 @@ from collections import defaultdict
 import re
 
 from urllib.parse import urljoin
-from bs4 import BeautifulSoup
 from tqdm import tqdm
 import requests_cache
 import logging
