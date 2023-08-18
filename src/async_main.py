@@ -2,6 +2,8 @@ from itertools import chain
 from typing import Dict, List, Tuple
 from collections import defaultdict
 import re
+import asyncio
+import aiohttp
 
 from urllib.parse import urljoin
 from bs4 import BeautifulSoup
@@ -11,7 +13,8 @@ import logging
 
 from configs import configure_argument_parser, configure_logging
 from outputs import control_output
-from utils import get_response, find_tag, find_all_tags
+from utils import async_get_response, get_response,\
+    find_tag, find_all_tags, get_soup
 from constants import BASE_DIR, DOWNLOAD_PATH, MAIN_DOC_URL, MAIN_PEP_URL,\
     NAME_DIR_DOWNLOADS, PREFIX_PEP, SECTIONS_PEP,\
     EXPECTED_STATUS, WHATS_NEW_PATH
@@ -30,10 +33,7 @@ def whats_new(
     (ссылка на статью, заголовок, редактор/автор).
     """
     whats_new_url = urljoin(MAIN_DOC_URL, WHATS_NEW_PATH)
-    response = get_response(session, whats_new_url)
-    if response is None:
-        return
-    soup = BeautifulSoup(response.text, features='lxml')
+    soup = get_soup(session, whats_new_url)
     main_div = find_tag(soup, 'section', attrs={'id': 'what-s-new-in-python'})
     div_with_ul = find_tag(
         main_div, 'div', attrs={'class': 'toctree-wrapper'}
@@ -48,10 +48,7 @@ def whats_new(
         version_a_tag = find_tag(section, 'a')
         href = version_a_tag['href']
         link = urljoin(whats_new_url, href)
-        response = get_response(session, link)
-        if response is None:
-            return
-        soup = BeautifulSoup(response.text, features='lxml')
+        soup = get_soup(session, link)
         h1 = find_tag(soup, 'h1')
         dl = find_tag(soup, 'dl')
         dl_text = dl.text.replace('\n', ' ')
@@ -70,10 +67,7 @@ def latest_versions(
     :type session: requests_cache.CachedSession
     :return: Список кортежей вида (ссылка на документацию, версия, статус).
     """
-    response = get_response(session, MAIN_DOC_URL)
-    if response is None:
-        return
-    soup = BeautifulSoup(response.text, features='lxml')
+    soup = get_soup(session, MAIN_DOC_URL)
     sidebar = find_tag(soup, 'div', {'class': 'sphinxsidebarwrapper'})
     ul_tags = sidebar.find_all('ul')
 
@@ -108,11 +102,8 @@ def download(session: requests_cache.CachedSession) -> None:
     :type session: requests_cache.CachedSession
     """
     downloads_url = urljoin(MAIN_DOC_URL, DOWNLOAD_PATH)
-    response = get_response(session, downloads_url)
-    if response is None:
-        return
-    html = BeautifulSoup(response.text, features='lxml')
-    table = find_tag(html, 'table')
+    soup = get_soup(session, downloads_url)
+    table = find_tag(soup, 'table')
     pdf_a4_tag = find_tag(
         table, 'a', {'href': re.compile(r'.+pdf-a4\.zip$')}
     )
@@ -130,7 +121,7 @@ def download(session: requests_cache.CachedSession) -> None:
     logging.info(f'Архив был загружен и сохранён: {archive_path}')
 
 
-def pep(
+async def pep(
     session: requests_cache.CachedSession
 ) -> List[Tuple[str, int]]:
     """
@@ -141,19 +132,15 @@ def pep(
     :return: Список кортежей, содержащих статусы
     и количество PEP документов с соответствующим статусом.
     """
-
-    response = get_response(session, MAIN_PEP_URL)
-    if response is None:
-        return
     status_links = []
-    soup = BeautifulSoup(response.text, features='lxml')
+    soup = get_soup(session, MAIN_PEP_URL)
     sections = find_all_tags(soup, 'section', {'id': SECTIONS_PEP})
     tbodys = [find_tag(section, 'tbody') for section in sections]
     tr_tags = chain.from_iterable(
         find_all_tags(tbody, 'tr') for tbody in tbodys
     )
 
-    for tr in tqdm(tr_tags):
+    for tr in tr_tags:
         status = tr.find('td').text[1:]
         status = EXPECTED_STATUS.get(status)
         if status is None:
@@ -162,40 +149,62 @@ def pep(
         link = tr.find('a').text
         status_links.append((status, PREFIX_PEP + link))
 
-    result_status = get_count_status(session, status_links)
+    result_status = await get_count_status(status_links)
     return [item for item in result_status.items()]
 
 
-def get_count_status(
-    session: requests_cache.CachedSession,
+async def process_link(
+        session: aiohttp,
+        result_status: Dict[str, int],
+        status: str, link: str
+) -> None:
+    """
+    Обрабатывает одну ссылку на страницу PEP и обновляет счетчики статусов.
+
+    :param session: Сессия aiohttp для выполнения запросов.
+    :param result_status: Словарь счетчиков статусов.
+    :param status: ожидаемый статусов.
+    :param link: Ссылка на страницу PEP.
+    :return: None.
+    """
+    url = urljoin(MAIN_PEP_URL, link)
+    response = await async_get_response(session, url)
+    if response is None:
+        return
+    soup = BeautifulSoup(response, features='lxml')
+    new_status = find_tag(
+        soup, 'section', {'id': 'pep-content'}
+    ).find('abbr').text
+
+    if new_status not in status:
+        logging.info(
+            f'\nНесовпадающие статусы:\n'
+            f'{url}\nСтатус в карточке: {new_status}\n'
+            f'Ожидаемые статусы: {status}'
+        )
+    result_status[new_status] += 1
+
+
+async def get_count_status(
     status_links: List[Tuple[str, str]]
 ) -> Dict[str, int]:
     """
-    Получает URLs PEP с каждым статусом.
+    Получает список ссылок на страницы PEP
+    и возвращает словарь счетчиков статусов.
 
-    :param session: Сессия для отправки запросов.
-    :type session: requests_cache.CachedSession
-    :return: Словарь, содержащий количество PEP документов
-    с каждым статусом и общее количество документов.
+    :param status_links: Список кортежей (статус, ссылка на страницу PEP).
+    :return: Словарь счетчиков статусов.
     """
     result_status = defaultdict(int)
-    for status, link in tqdm(status_links):
-        url = urljoin(MAIN_PEP_URL, link)
-        response = get_response(session, url)
-        if response is None:
-            return
-        soup = BeautifulSoup(response.text, features='lxml')
-        new_status = find_tag(
-            soup, 'section', {'id': 'pep-content'}
-        ).find('abbr').text
 
-        if new_status not in status:
-            logging.info(
-                f'\nНесовпадающие статусы:\n'
-                f'{url}\nСтатус в карточке: {new_status}\n'
-                f'Ожидаемые статусы: {status}'
-            )
-        result_status[new_status] += 1
+    async with aiohttp.ClientSession() as session:
+        tasks = []
+        for status, link in status_links:
+            task = process_link(session, result_status, status, link)
+            tasks.append(task)
+
+        await asyncio.gather(*tasks)
+
     result_status['Total'] = sum(result_status.values())
     return result_status
 
@@ -223,16 +232,19 @@ def main() -> None:
     args = arg_parser.parse_args()
     logging.info(f'Аргументы командной строки: {args}')
 
-    session = requests_cache.CachedSession(expire_after=None)
-    session.max_redirects
+    session = requests_cache.CachedSession()
+
     if args.clear_cache:
         session.cache.clear()
 
     parser_mode = args.mode
     try:
-        results = MODE_TO_FUNCTION[parser_mode](session)
+        if parser_mode == 'pep':
+            results = asyncio.run(MODE_TO_FUNCTION[parser_mode](session))
+        else:
+            results = MODE_TO_FUNCTION[parser_mode](session)
     except Exception as e:
-        logging.error(str(e))
+        logging.error(str(e), e)
         results = None
 
     if results is not None:

@@ -5,7 +5,7 @@ from typing import Any, List
 
 from prettytable import PrettyTable
 
-from constants import BASE_DIR, DATETIME_FORMAT
+from constants import PathConstants, FormatConstants
 
 
 def control_output(results: List[List[str]], cli_args: Any) -> None:
@@ -64,9 +64,9 @@ def file_output(results: List[List[str]], cli_args: Any) -> None:
     :param cli_args: аргументы командной строки
     :return: None
     """
-    results_dir = BASE_DIR / 'results'
+    results_dir = PathConstants.BASE_DIR / 'results'
     results_dir.mkdir(exist_ok=True)
-    now = dt.datetime.now().strftime(DATETIME_FORMAT)
+    now = dt.datetime.now().strftime(FormatConstants.DATETIME_FORMAT)
     file_name = f'{cli_args.mode}_{now}.csv'
     file_path = results_dir / file_name
 

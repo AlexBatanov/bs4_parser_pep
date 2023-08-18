@@ -53,7 +53,7 @@ def test_control_output_pretty(capsys, records, cli_arg, part_output):
 ])
 def test_control_output_file(monkeypatch, tmp_path, records, cli_arg):
     mock_base_dir = Path(tmp_path)
-    monkeypatch.setattr(outputs, 'BASE_DIR', mock_base_dir)
+    monkeypatch.setattr(outputs.PathConstants, 'BASE_DIR', mock_base_dir)
 
     records = records(cli_arg.mode)
     outputs.control_output(records, cli_arg)
