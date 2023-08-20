@@ -10,7 +10,7 @@ import logging
 
 from configs import configure_argument_parser, configure_logging
 from outputs import control_output
-from utils import find_tag, find_all_tags, get_soup
+from utils import find_tag, find_all_tags, get_response, get_soup
 from exceptions import NotFoundVersionList
 from constants import BASE_DIR, DOWNLOAD_PATH, EXPECTED_STATUS, MAIN_DOC_URL,\
     MAIN_PEP_URL, NAME_DIR_DOWNLOADS, PREFIX, SECTIONS, WHATS_NEW_PATH
@@ -32,7 +32,8 @@ def whats_new(
         MAIN_DOC_URL,
         WHATS_NEW_PATH
     )
-    soup = get_soup(session, whats_new_url)
+    response = get_response(session, whats_new_url)
+    soup = get_soup(response)
     main_div = find_tag(soup, 'section', attrs={'id': 'what-s-new-in-python'})
     div_with_ul = find_tag(
         main_div, 'div', attrs={'class': 'toctree-wrapper'}
@@ -47,7 +48,8 @@ def whats_new(
         version_a_tag = find_tag(section, 'a')
         href = version_a_tag['href']
         link = urljoin(whats_new_url, href)
-        soup = get_soup(session, link)
+        response = get_response(session, link)
+        soup = get_soup(response)
         h1 = find_tag(soup, 'h1')
         dl = find_tag(soup, 'dl')
         dl_text = dl.text.replace('\n', ' ')
@@ -66,7 +68,8 @@ def latest_versions(
     :type session: requests_cache.CachedSession
     :return: Список кортежей вида (ссылка на документацию, версия, статус).
     """
-    soup = get_soup(session, MAIN_DOC_URL)
+    response = get_response(session, MAIN_DOC_URL)
+    soup = get_soup(response)
     sidebar = find_tag(soup, 'div', {'class': 'sphinxsidebarwrapper'})
     ul_tags = sidebar.find_all('ul')
 
@@ -104,7 +107,8 @@ def download(session: requests_cache.CachedSession) -> None:
         MAIN_DOC_URL,
         DOWNLOAD_PATH
     )
-    soup = get_soup(session, downloads_url)
+    response = get_response(session, downloads_url)
+    soup = get_soup(response)
     table = find_tag(soup, 'table')
     pdf_a4_tag = find_tag(
         table, 'a', {'href': re.compile(r'.+pdf-a4\.zip$')}
@@ -134,7 +138,8 @@ def pep(
     :return: Список кортежей, содержащих статусы
     и количество PEP документов с соответствующим статусом.
     """
-    soup = get_soup(session, MAIN_PEP_URL)
+    response = get_response(session, MAIN_PEP_URL)
+    soup = get_soup(response)
     sections = find_all_tags(
         soup, 'section', {'id': SECTIONS}
     )
@@ -171,7 +176,8 @@ def get_count_status(
     result_status = defaultdict(int)
     for status, link in tqdm(status_links):
         url = urljoin(MAIN_PEP_URL, link)
-        soup = get_soup(session, url)
+        response = get_response(session, url)
+        soup = get_soup(response)
         new_status = find_tag(
             soup, 'section', {'id': 'pep-content'}
         ).find('abbr').text

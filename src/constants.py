@@ -45,4 +45,5 @@ EXPECTED_STATUS = {
 
 
 # ConfigOutputConstants:
-OUTPUT_OPTION = ('pretty', 'file')
+OUTPUT_FILE = 'file'
+OUTPUT_TABLE = 'pretty'

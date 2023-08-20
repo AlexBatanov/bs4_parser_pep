@@ -5,7 +5,8 @@ from typing import Any, List
 
 from prettytable import PrettyTable
 
-from constants import BASE_DIR, DATETIME_FORMAT, NAME_DIR_RESULTS
+from constants import BASE_DIR, DATETIME_FORMAT, NAME_DIR_RESULTS,\
+    OUTPUT_FILE, OUTPUT_TABLE
 
 
 def control_output(results: List[List[str]], cli_args: Any) -> None:
@@ -19,9 +20,9 @@ def control_output(results: List[List[str]], cli_args: Any) -> None:
     :return: None
     """
     output = cli_args.output
-    if output == 'pretty':
+    if output == OUTPUT_TABLE:
         pretty_output(results)
-    elif output == 'file':
+    elif output == OUTPUT_FILE:
         file_output(results, cli_args)
     else:
         default_output(results)

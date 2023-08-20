@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup, NavigableString, ResultSet
 from requests import RequestException
 import requests_cache
 
-from exceptions import ParserFindTagException
+from exceptions import EmptyResponseExeption, ParserFindTagException
 
 
 def get_response(
@@ -74,18 +74,14 @@ def find_all_tags(
     return searched_tags
 
 
-def get_soup(
-    session: requests_cache.CachedSession, url: str
-) -> BeautifulSoup:
+def get_soup(response: requests_cache.AnyResponse) -> BeautifulSoup:
     """
-    Возвращает объект BeautifulSoup для указанного URL-адреса.
+    Возвращает объект BeautifulSoup из переданного response.
 
-    :param session: объект CachedSession для кэширования запросов
-    :param url: URL-адрес для загрузки
+    :response: объект Response
     :return: объект BeautifulSoup
-    :raises RequestException: если произошла ошибка загрузки
+    :raises EmptyDataSoupExeption: если поступил пустой response
     """
-    response = get_response(session, url)
-    if response is not None:
-        return BeautifulSoup(response.text, features='lxml')
-    raise RequestException(f'Ошибка загрузки {url}')
+    if response is None:
+        raise EmptyResponseExeption('Пустой респонс для soup')
+    return BeautifulSoup(response.text, features='lxml')
